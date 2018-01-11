@@ -1,0 +1,83 @@
+           4---
+title: "movement type predictor"
+author: "Renaud Viot"
+date: "1/10/2018"
+output: html_document
+---
+
+## Excecutive summary
+The goal of this analysis is to predict the movement based on several indicators.
+We have ran two models; boosting and random forest. The random forest model gave us an accuracy of 100%, which bears a risk of overfitting the training test. Cross validated using the boosting model (accuracy of 92%), we decided to go with the random forest as our prediction model.
+
+## Background
+Human Activity Recognition - HAR - has emerged as a key research area in the last years and is gaining increasing attention by the pervasive computing research community, especially for the development of context-aware systems. There are many potential applications for HAR, like: elderly monitoring, life log systems for monitoring energy expenditure and for supporting weight-loss programs, and digital assistants for weight lifting exercises.
+
+## Discovery of the data
+
+### Load needed library
+In order to perform the analysis, we have used the library listed below:
+```{r include=FALSE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(forecast)
+```
+
+### Load the data
+The data to use is available online whici is where we gathered the data:
+```{r}
+
+train <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+test <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(train),
+                     na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(test),
+                    na.strings=c("NA","#DIV/0!",""))
+```
+
+### Clean the data
+In order to perform the analysis, we decided to strip out any variable containing empty or n/a values. We then kept only variables that were giving an indication of movement (x,y,z):
+```{r}
+trainingsmall <- subset(training,
+                        select=colMeans(is.na(training)) == 0)
+trainingxyz <- trainingsmall[,grepl("_x|_y|_z|classe", names(trainingsmall))]
+trainingxyz$classe = factor(trainingxyz$classe)
+dim(trainingxyz)
+```
+
+## Fitting models
+
+For this exercise, we have tried to fit two different models:
+- boosting (accuracy=92% - see confusion matrix in appendix)
+- random forest (accuracy=100% - see confusion matrix in appendix)
+The random forest accuracy (100%) drives us to beleive that we are bearing in the model an overfitting risk. We do not believe that combining an overfitted model with another model will be meaningful, hence we will use the random forest model with the awareness that it might be overfitted.
+
+## Appendices
+
+### Confusion matrices
+
+#### Boosting
+
+```{r}
+modfit2 <- train(classe~., method="gbm", data=trainingxyz, verbose=FALSE)
+confusionMatrix(predict(modfit2, trainingxyz),
+                trainingxyz$classe)
+```
+
+#### Random Forest
+
+```{r}
+modfit3 <- train(classe~., data=trainingxyz, method='rf',
+                 trControl=trainControl(method='cv'), number=3)
+confusionMatrix(predict(modfit3, trainingxyz),
+                trainingxyz$classe)
+```
+
+## Apply the fitted model to the testing set
+
+We then applied the random forest model to the testing data set and conclude that the movement for each of the 20 samples are the following:
+
+```{r}
+predict(modfit2, testing)
+```
